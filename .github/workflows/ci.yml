@@ -36,3 +36,4 @@ jobs:
         run: echo "✅ HTML App Version 1 validated successfully"
 
         # new test
+        # new test 2
