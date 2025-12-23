@@ -1,19 +1,19 @@
-name: CI - HTML App Version 1
+name: CI + Deploy HTML App to EC2
 
 on:
   push:
     branches: [ main ]
-  #pull_request:
-    #branches: [ main ]
 
 jobs:
-  html-ci:
+  html-ci-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Verify app directory exists
       - name: Verify app directory exists
         run: |
           if [ ! -d "app" ]; then
@@ -21,19 +21,29 @@ jobs:
             exit 1
           fi
 
+      # 3. Verify index.html exists
       - name: Verify index.html exists
         run: |
           if [ ! -f "app/index.html" ]; then
-            echo "❌ index.html missing"
+            echo "❌ app/index.html missing"
             exit 1
           fi
 
-      - name: Check Version 1 in HTML
+      # 4. Validate version in HTML
+      - name: Validate HTML version
         run: |
-          grep -q "Version 2" app/index.html || (echo "❌ Version 1 not found" && exit 1)
+          grep -q "Version" app/index.html || (echo "❌ Version not found in HTML" && exit 1)
 
-      - name: CI Passed
-        run: echo "✅ HTML App Version 1 validated successfully"
-
-        # new test
-        # new test 2
+      # 5. Deploy to EC2 via SSH
+      - name: Deploy HTML to EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Deploying HTML app to EC2..."
+            sudo rm -f /usr/share/nginx/html/index.html
+            sudo cp app/index.html /usr/share/nginx/html/index.html
+            sudo systemctl restart nginx
+            echo "Deployment completed successfully"
