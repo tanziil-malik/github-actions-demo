@@ -9,22 +9,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
+      # --------------------------------------------------
+      # 1. Checkout source code
+      # --------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Verify app directory exists
+      # --------------------------------------------------
+      # 2. Validate app directory exists
+      # --------------------------------------------------
       - name: Verify app directory exists
         run: |
-          test -d app || (echo "❌ app directory missing" && exit 1)
+          if [ ! -d "app" ]; then
+            echo "❌ app directory missing"
+            exit 1
+          fi
 
-      # 3. Verify index.html exists
+      # --------------------------------------------------
+      # 3. Validate index.html exists
+      # --------------------------------------------------
       - name: Verify index.html exists
         run: |
-          test -f app/index.html || (echo "❌ index.html missing" && exit 1)
+          if [ ! -f "app/index.html" ]; then
+            echo "❌ app/index.html missing"
+            exit 1
+          fi
 
-      # 4. Copy HTML file to EC2
-      - name: Copy HTML to EC2
+      # --------------------------------------------------
+      # 4. Validate HTML version text
+      # --------------------------------------------------
+      - name: Validate HTML content
+        run: |
+          grep -q "Version" app/index.html || (echo "❌ Version not found in HTML" && exit 1)
+
+      # --------------------------------------------------
+      # 5. Copy HTML file from GitHub to EC2 (/tmp)
+      # --------------------------------------------------
+      - name: Copy HTML file to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -33,14 +54,27 @@ jobs:
           source: "app/index.html"
           target: "/tmp"
 
-      # 5. Move file to Nginx web root
-      - name: Deploy on EC2
+      # --------------------------------------------------
+      # 6. Deploy on EC2 with correct permissions
+      # --------------------------------------------------
+      - name: Deploy HTML app on EC2
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            echo "🚀 Deploying HTML app..."
+
+            # Move file to Nginx web root
             sudo mv /tmp/index.html /usr/share/nginx/html/index.html
+
+            # Fix ownership and permissions (PREVENT 403)
+            sudo chown nginx:nginx /usr/share/nginx/html/index.html
+            sudo chmod 644 /usr/share/nginx/html/index.html
+            sudo chmod 755 /usr/share/nginx/html
+
+            # Restart Nginx
             sudo systemctl restart nginx
-            echo "✅ Deployment successful"
+
+            echo "✅ Deployment completed successfully"
