@@ -1,0 +1,36 @@
+name: CI - HTML App Version 1
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  html-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify app directory exists
+        run: |
+          if [ ! -d "app" ]; then
+            echo "❌ app directory missing"
+            exit 1
+          fi
+
+      - name: Verify index.html exists
+        run: |
+          if [ ! -f "app/index.html" ]; then
+            echo "❌ index.html missing"
+            exit 1
+          fi
+
+      - name: Check Version 1 in HTML
+        run: |
+          grep -q "Version 1" app/index.html || (echo "❌ Version 1 not found" && exit 1)
+
+      - name: CI Passed
+        run: echo "✅ HTML App Version 1 validated successfully"
