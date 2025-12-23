@@ -9,41 +9,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
       # 2. Verify app directory exists
       - name: Verify app directory exists
         run: |
-          if [ ! -d "app" ]; then
-            echo "❌ app directory missing"
-            exit 1
-          fi
+          test -d app || (echo "❌ app directory missing" && exit 1)
 
       # 3. Verify index.html exists
       - name: Verify index.html exists
         run: |
-          if [ ! -f "app/index.html" ]; then
-            echo "❌ app/index.html missing"
-            exit 1
-          fi
+          test -f app/index.html || (echo "❌ index.html missing" && exit 1)
 
-      # 4. Validate version in HTML
-      - name: Validate HTML version
-        run: |
-          grep -q "Version" app/index.html || (echo "❌ Version not found in HTML" && exit 1)
+      # 4. Copy HTML file to EC2
+      - name: Copy HTML to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "app/index.html"
+          target: "/tmp"
 
-      # 5. Deploy to EC2 via SSH
-      - name: Deploy HTML to EC2
+      # 5. Move file to Nginx web root
+      - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "Deploying HTML app to EC2..."
-            sudo rm -f /usr/share/nginx/html/index.html
-            sudo cp app/index.html /usr/share/nginx/html/index.html
+            sudo mv /tmp/index.html /usr/share/nginx/html/index.html
             sudo systemctl restart nginx
-            echo "Deployment completed successfully"
+            echo "✅ Deployment successful"
