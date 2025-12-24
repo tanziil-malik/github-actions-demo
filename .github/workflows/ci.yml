@@ -20,11 +20,11 @@ jobs:
           test -f app/index.html || (echo "❌ app/index.html missing" && exit 1)
 
       # 3. Copy index.html directly to Nginx web root (SCP ONLY)
-      - name: SCP deploy index.html
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "app/index.html"
-          target: "/var/www/html-app/"
+      - name: SCP deploy index.html to EC2
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          scp -i ~/.ssh/ec2_key app/index.html \
+          ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/http-app/index.html
